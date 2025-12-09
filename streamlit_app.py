@@ -1,586 +1,282 @@
-# streamlit_app.py - Creative AI Studio
+# streamlit_app.py - 极简音乐可视化工作室
 import streamlit as st
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
-import plotly.graph_objects as go
-import plotly.express as px
-import random
-import math
-import requests
-import json
+import base64
 import io
 from PIL import Image
-from datetime import datetime, timedelta
-import base64
+import random
+import math
 
-# Page configuration
+# 页面配置
 st.set_page_config(
-    page_title="Creative AI Studio",
-    page_icon="🎨",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/yourusername/creative-ai-studio',
-        'Report a bug': "https://github.com/yourusername/creative-ai-studio/issues",
-        'About': "# Creative AI Studio\n## All-in-One Art & Data Platform"
-    }
+    page_title="Music Art Visualizer",
+    page_icon="🎵",
+    layout="wide"
 )
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #4A90E2;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .feature-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem;
-        transition: transform 0.3s ease;
-    }
-    .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 600;
-    }
-</style>
-""", unsafe_allow_html=True)
+# 应用标题
+st.title("🎵 Music Art Visualizer")
+st.markdown("**Transform your music into visual art with one click!**")
 
-# Session state initialization
-if 'generated_images' not in st.session_state:
-    st.session_state.generated_images = []
-if 'saved_projects' not in st.session_state:
-    st.session_state.saved_projects = []
-if 'current_project' not in st.session_state:
-    st.session_state.current_project = {}
+# 生成简单的音乐模拟数据
+def generate_music_data(music_type="electronic"):
+    """生成模拟的音乐数据"""
+    np.random.seed(42)
+    
+    if music_type == "electronic":
+        beats = 120  # BPM
+        frequencies = np.linspace(80, 2000, 1000)
+        amplitudes = np.random.exponential(0.5, 1000) * np.sin(frequencies/100)
+        
+    elif music_type == "classical":
+        beats = 72
+        frequencies = np.linspace(50, 1000, 1000)
+        amplitudes = np.random.normal(0.5, 0.2, 1000) * np.sin(frequencies/50)
+        
+    elif music_type == "jazz":
+        beats = 100
+        frequencies = np.linspace(60, 1500, 1000)
+        amplitudes = np.random.uniform(0.3, 0.8, 1000) * np.sin(frequencies/80)
+    
+    else:  # pop
+        beats = 128
+        frequencies = np.linspace(100, 2500, 1000)
+        amplitudes = np.random.random(1000) * np.sin(frequencies/120)
+    
+    return {
+        "frequencies": frequencies,
+        "amplitudes": amplitudes,
+        "beats": beats,
+        "music_type": music_type
+    }
 
-# Title and Introduction
-st.markdown('<h1 class="main-header">🎨 Creative AI Studio</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">All-in-One Generative Art & Data Visualization Platform</p>', unsafe_allow_html=True)
+# 3种简单的可视化风格
+def create_waveform_art(music_data):
+    """风格1：波形艺术"""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # 基于音乐类型选择颜色
+    colors = {
+        "electronic": ["#FF006E", "#8338EC", "#3A86FF"],
+        "classical": ["#FF9E00", "#FF5400", "#FF006E"],
+        "jazz": ["#38B000", "#70E000", "#CCFF33"],
+        "pop": ["#7209B7", "#F72585", "#4361EE"]
+    }
+    
+    color = colors.get(music_data["music_type"], ["#FF006E", "#8338EC"])
+    
+    # 创建波形
+    x = music_data["frequencies"]
+    y = music_data["amplitudes"]
+    
+    # 添加一些噪声和效果
+    for i in range(3):
+        ax.plot(x, y + i*0.2, 
+                color=color[i % len(color)], 
+                alpha=0.7,
+                linewidth=2)
+    
+    ax.fill_between(x, -0.5, 0.5, alpha=0.1, color=color[0])
+    ax.axis('off')
+    ax.set_facecolor('#111111')
+    fig.patch.set_facecolor('#111111')
+    
+    plt.tight_layout()
+    return fig
 
-st.markdown("""
-<div style="text-align: center; margin-bottom: 2rem;">
-    <p>Arts & Advanced Big Data - Final Project | Sungkyunkwan University | Prof. Jahwan Koo</p>
-</div>
-""", unsafe_allow_html=True)
+def create_circular_art(music_data):
+    """风格2：圆形艺术"""
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # 音乐数据映射到圆形
+    angles = np.linspace(0, 2 * np.pi, 1000)
+    radii = 0.5 + music_data["amplitudes"][:1000] * 0.3
+    
+    # 创建多个同心圆
+    for i in range(5):
+        r = radii * (1 + i * 0.1)
+        x = r * np.cos(angles + i * 0.5)
+        y = r * np.sin(angles + i * 0.5)
+        
+        ax.plot(x, y, 
+                color=plt.cm.plasma(i/5), 
+                alpha=0.7,
+                linewidth=1.5)
+    
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_facecolor('#000000')
+    fig.patch.set_facecolor('#000000')
+    
+    plt.tight_layout()
+    return fig
 
-# Navigation
-st.sidebar.title("🚀 Navigation")
-page = st.sidebar.radio(
-    "Go to",
-    ["🏠 Dashboard", "🎨 Generative Art", "📊 Data Visualization", "🌐 API Explorer", "📁 My Projects", "📚 About"]
+def create_particle_art(music_data):
+    """风格3：粒子艺术"""
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    # 基于音乐振幅创建粒子
+    n_particles = 500
+    amplitudes = music_data["amplitudes"]
+    
+    # 生成随机粒子位置
+    x = np.random.randn(n_particles) * 2
+    y = np.random.randn(n_particles) * 2
+    
+    # 粒子大小基于音乐振幅
+    sizes = np.abs(amplitudes[:n_particles]) * 100 + 10
+    colors = amplitudes[:n_particles]
+    
+    # 散点图
+    scatter = ax.scatter(x, y, 
+                         s=sizes, 
+                         c=colors, 
+                         cmap='viridis',
+                         alpha=0.6,
+                         edgecolors='white',
+                         linewidth=0.5)
+    
+    # 添加一些连接线
+    for i in range(0, n_particles, 50):
+        for j in range(i+1, min(i+3, n_particles)):
+            ax.plot([x[i], x[j]], [y[i], y[j]], 
+                    'w-', alpha=0.1, linewidth=0.5)
+    
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_facecolor('#1a1a2e')
+    fig.patch.set_facecolor('#1a1a2e')
+    
+    plt.tight_layout()
+    return fig
+
+# 侧边栏控制
+st.sidebar.header("🎛️ Control Panel")
+
+# 1. 音乐类型选择
+music_type = st.sidebar.selectbox(
+    "Select Music Type",
+    ["electronic", "pop", "classical", "jazz"],
+    index=0
 )
 
-# Dashboard Page
-if page == "🏠 Dashboard":
-    st.header("📊 Dashboard")
-    
-    # Introduction
-    st.markdown("""
-    ## Welcome to Creative AI Studio!
-    
-    This platform integrates everything we learned this semester:
-    
-    - **Generative Art Creation** - Algorithmic art with custom parameters
-    - **Data-Driven Design** - Transform CSV data into beautiful visualizations
-    - **API Integration** - Connect to external data sources (MET Museum, Weather, Stocks)
-    - **Interactive Tools** - Real-time parameter adjustment and preview
-    
-    ### How to Use:
-    1. Select a module from the sidebar
-    2. Adjust parameters using the controls
-    3. Generate and customize your creations
-    4. Save and export your projects
-    """)
-    
-    # Quick Stats
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Projects Created", len(st.session_state.saved_projects))
-    with col2:
-        st.metric("Images Generated", len(st.session_state.generated_images))
-    with col3:
-        st.metric("API Integrations", "3 Active")
-    with col4:
-        st.metric("Available Styles", "8+")
-    
-    # Features Grid
-    st.header("✨ Key Features")
-    
-    features = [
-        {"icon": "🎨", "title": "Generative Art", "desc": "Create algorithmic art with custom shapes, colors, and patterns"},
-        {"icon": "📊", "title": "Data Visualization", "desc": "Transform CSV data into beautiful visual art"},
-        {"icon": "🌐", "title": "API Integration", "desc": "Connect to MET Museum, Weather, and Stock APIs"},
-        {"icon": "⚡", "title": "Real-time Preview", "desc": "See changes instantly as you adjust parameters"},
-        {"icon": "💾", "title": "Project Saving", "desc": "Save and reload your creative projects"},
-        {"icon": "📱", "title": "Responsive Design", "desc": "Works on desktop, tablet, and mobile devices"}
-    ]
-    
-    cols = st.columns(3)
-    for i, feature in enumerate(features):
-        with cols[i % 3]:
-            with st.container():
-                st.markdown(f"""
-                <div class="feature-card">
-                    <h3>{feature['icon']} {feature['title']}</h3>
-                    <p>{feature['desc']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-    
-    # Quick Start
-    st.header("🚀 Quick Start")
-    
-    quick_cols = st.columns(3)
-    with quick_cols[0]:
-        if st.button("🎨 Start Generative Art", use_container_width=True):
-            st.session_state.page = "🎨 Generative Art"
-            st.rerun()
-    
-    with quick_cols[1]:
-        if st.button("📊 Try Data Visualization", use_container_width=True):
-            st.session_state.page = "📊 Data Visualization"
-            st.rerun()
-    
-    with quick_cols[2]:
-        if st.button("🌐 Explore APIs", use_container_width=True):
-            st.session_state.page = "🌐 API Explorer"
-            st.rerun()
+# 2. 可视化风格选择
+art_style = st.sidebar.radio(
+    "Art Style",
+    ["Waveform Art", "Circular Art", "Particle Art"],
+    index=0
+)
 
-# Generative Art Page
-elif page == "🎨 Generative Art":
-    st.header("🎨 Generative Art Studio")
+# 3. 颜色调整
+brightness = st.sidebar.slider("Brightness", 0.5, 1.5, 1.0, 0.1)
+art_size = st.sidebar.slider("Art Size", 0.5, 2.0, 1.0, 0.1)
+
+# 4. 生成按钮
+if st.sidebar.button("🎨 Generate Art", type="primary", use_container_width=True):
+    # 生成音乐数据
+    music_data = generate_music_data(music_type)
     
-    # Import generative art functions
-    from generative_art_module import GenerativeArtStudio
-    
-    studio = GenerativeArtStudio()
-    
-    # Sidebar controls
-    st.sidebar.header("🛠️ Art Controls")
-    
-    # Style selection
-    art_style = st.sidebar.selectbox(
-        "Art Style",
-        ["Organic Blobs", "Geometric Patterns", "Abstract Lines", "Color Fields", "Noise Art"],
-        index=0
-    )
-    
-    # Color palette
-    palette = st.sidebar.selectbox(
-        "Color Palette",
-        ["Pastel", "Vivid", "Monochrome", "Sunset", "Ocean", "Forest", "Custom"],
-        index=0
-    )
-    
-    if palette == "Custom":
-        col1, col2, col3 = st.sidebar.columns(3)
+    # 创建可视化
+    with st.spinner("Creating your music art..."):
+        if art_style == "Waveform Art":
+            fig = create_waveform_art(music_data)
+        elif art_style == "Circular Art":
+            fig = create_circular_art(music_data)
+        else:  # Particle Art
+            fig = create_particle_art(music_data)
+        
+        # 显示图表
+        col1, col2 = st.columns([2, 1])
+        
         with col1:
-            color1 = st.color_picker("Color 1", "#FF6B6B")
-        with col2:
-            color2 = st.color_picker("Color 2", "#4ECDC4")
-        with col3:
-            color3 = st.color_picker("Color 3", "#45B7D1")
-    
-    # Parameters
-    complexity = st.sidebar.slider("Complexity", 1, 10, 5)
-    layers = st.sidebar.slider("Layers", 1, 20, 8)
-    randomness = st.sidebar.slider("Randomness", 0.0, 1.0, 0.5)
-    
-    # Generate button
-    if st.sidebar.button("✨ Generate Art", type="primary", use_container_width=True):
-        with st.spinner("Creating your masterpiece..."):
-            # Generate art based on parameters
-            fig = studio.create_art(
-                style=art_style,
-                palette=palette if palette != "Custom" else [color1, color2, color3],
-                complexity=complexity,
-                layers=layers,
-                randomness=randomness
-            )
-            
-            # Display the art
             st.pyplot(fig)
             
-            # Save to session state
-            art_data = {
-                "style": art_style,
-                "palette": palette,
-                "complexity": complexity,
-                "layers": layers,
-                "randomness": randomness,
-                "timestamp": datetime.now().isoformat()
-            }
-            st.session_state.generated_images.append(art_data)
+            # 下载按钮
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300, facecolor=fig.get_facecolor())
+            buf.seek(0)
             
-            # Save options
-            col1, col2 = st.columns(2)
-            with col1:
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png", dpi=300)
-                buf.seek(0)
-                st.download_button(
-                    label="💾 Download PNG",
-                    data=buf,
-                    file_name=f"generative_art_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
-            with col2:
-                if st.button("📁 Save Project", use_container_width=True):
-                    st.session_state.saved_projects.append(art_data)
-                    st.success("Project saved!")
-
-# Data Visualization Page
-elif page == "📊 Data Visualization":
-    st.header("📊 Data Visualization Studio")
-    
-    # Import data visualization functions
-    from data_viz_module import DataVisualizer
-    
-    viz = DataVisualizer()
-    
-    # Data upload section
-    st.subheader("📁 Upload Your Data")
-    
-    upload_option = st.radio(
-        "Data Source",
-        ["Upload CSV File", "Use Sample Data", "Generate Random Data"],
-        horizontal=True
-    )
-    
-    data = None
-    
-    if upload_option == "Upload CSV File":
-        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-        if uploaded_file is not None:
-            data = pd.read_csv(uploaded_file)
-            st.success(f"Successfully loaded {len(data)} rows")
-    
-    elif upload_option == "Use Sample Data":
-        # Load sample data
-        sample_data = {
-            'Category': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
-            'Value1': [25, 34, 22, 45, 38, 28, 32, 40],
-            'Value2': [45, 28, 35, 42, 30, 48, 25, 38],
-            'Value3': [18, 22, 30, 25, 42, 20, 35, 28],
-            'Growth': [0.1, 0.25, -0.05, 0.33, 0.17, -0.12, 0.28, 0.15]
-        }
-        data = pd.DataFrame(sample_data)
-        st.info("Using sample data")
-    
-    else:  # Generate Random Data
-        num_points = st.slider("Number of data points", 10, 100, 50)
-        data = pd.DataFrame({
-            'x': np.random.randn(num_points),
-            'y': np.random.randn(num_points),
-            'size': np.random.uniform(10, 100, num_points),
-            'category': np.random.choice(['A', 'B', 'C', 'D'], num_points)
-        })
-    
-    if data is not None:
-        st.subheader("📈 Data Preview")
-        st.dataframe(data.head(), use_container_width=True)
+            st.download_button(
+                label="📥 Download Artwork",
+                data=buf,
+                file_name=f"music_art_{music_type}.png",
+                mime="image/png",
+                use_container_width=True
+            )
         
-        # Visualization options
-        st.subheader("🎨 Visualization Options")
-        
-        viz_type = st.selectbox(
-            "Visualization Type",
-            ["Scatter Plot", "Bar Chart", "Line Chart", "Heatmap", "Pie Chart", "Radar Chart"]
-        )
-        
-        if viz_type == "Scatter Plot":
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                x_col = st.selectbox("X Axis", data.columns.tolist())
-            with col2:
-                y_col = st.selectbox("Y Axis", data.columns.tolist())
-            with col3:
-                color_col = st.selectbox("Color By", ["None"] + data.columns.tolist())
+        with col2:
+            # 音乐信息显示
+            st.subheader("🎵 Music Info")
+            st.metric("BPM", music_data["beats"])
+            st.metric("Type", music_data["music_type"].title())
+            st.metric("Art Style", art_style)
             
-            fig = px.scatter(data, x=x_col, y=y_col, color=color_col if color_col != "None" else None)
-        
-        elif viz_type == "Bar Chart":
-            x_col = st.selectbox("Category Column", data.columns.tolist())
-            y_col = st.selectbox("Value Column", data.columns.tolist())
-            fig = px.bar(data, x=x_col, y=y_col)
-        
-        # Display the visualization
-        st.plotly_chart(fig, use_container_width=True)
-
-# API Explorer Page
-elif page == "🌐 API Explorer":
-    st.header("🌐 API Explorer Hub")
-    
-    api_choice = st.selectbox(
-        "Choose API to Explore",
-        ["MET Museum Art Collection", "Open-Meteo Weather", "Stock Market Data", "News API"]
-    )
-    
-    if api_choice == "MET Museum Art Collection":
-        st.subheader("🏛️ MET Museum Art Explorer")
-        
-        search_term = st.text_input("Search for artworks:", "flower")
-        
-        if st.button("Search Artworks"):
-            with st.spinner("Searching MET Museum collection..."):
-                # MET API integration
-                search_url = "https://collectionapi.metmuseum.org/public/collection/v1/search"
-                params = {'q': search_term, 'hasImages': True}
-                
-                try:
-                    response = requests.get(search_url, params=params)
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.success(f"Found {data.get('total', 0)} artworks")
-                        
-                        # Display first few results
-                        if data.get('objectIDs'):
-                            for obj_id in data['objectIDs'][:5]:
-                                details_url = f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{obj_id}"
-                                details_response = requests.get(details_url)
-                                if details_response.status_code == 200:
-                                    artwork = details_response.json()
-                                    if artwork.get('primaryImage'):
-                                        col1, col2 = st.columns([1, 2])
-                                        with col1:
-                                            st.image(artwork['primaryImage'], use_column_width=True)
-                                        with col2:
-                                            st.write(f"**{artwork.get('title', 'Unknown')}**")
-                                            st.write(f"Artist: {artwork.get('artistDisplayName', 'Unknown')}")
-                                            st.write(f"Date: {artwork.get('objectDate', 'Unknown')}")
-                                            st.write(f"Department: {artwork.get('department', 'Unknown')}")
-                                        st.markdown("---")
-                except Exception as e:
-                    st.error(f"Error accessing MET API: {e}")
-    
-    elif api_choice == "Open-Meteo Weather":
-        st.subheader("🌤️ Weather Data Explorer")
-        
-        # Simple weather display
-        cities = {
-            "Seoul": (37.5665, 126.9780),
-            "Tokyo": (35.6762, 139.6503),
-            "New York": (40.7128, -74.0060),
-            "London": (51.5074, -0.1278),
-            "Sydney": (-33.8688, 151.2093)
-        }
-        
-        selected_city = st.selectbox("Select City", list(cities.keys()))
-        
-        if st.button("Get Weather"):
-            lat, lon = cities[selected_city]
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+            # 艺术信息
+            st.subheader("🎨 Art Info")
+            st.write(f"**Colors:** Based on {music_type} palette")
+            st.write(f"**Pattern:** Generated from {len(music_data['amplitudes'])} data points")
+            st.write(f"**Brightness:** {brightness}x")
             
-            try:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    weather = response.json()['current_weather']
-                    temp = weather['temperature']
-                    windspeed = weather['windspeed']
-                    weathercode = weather['weathercode']
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Temperature", f"{temp}°C")
-                    with col2:
-                        st.metric("Wind Speed", f"{windspeed} km/h")
-                    with col3:
-                        st.metric("Weather Code", weathercode)
-                    
-                    # Simple weather interpretation
-                    if weathercode == 0:
-                        st.success("Clear sky ☀️")
-                    elif weathercode in [1, 2, 3]:
-                        st.info("Partly cloudy ⛅")
-                    elif weathercode in [45, 48]:
-                        st.warning("Foggy 🌫️")
-                    elif weathercode in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
-                        st.warning("Rainy 🌧️")
-                    elif weathercode in [95, 96, 99]:
-                        st.error("Thunderstorm ⛈️")
-            except Exception as e:
-                st.error(f"Error accessing weather API: {e}")
+            # 简单的频率可视化
+            st.subheader("📊 Frequency Spectrum")
+            freq_chart = np.abs(music_data["amplitudes"][:100])
+            st.line_chart(freq_chart)
 
-# My Projects Page
-elif page == "📁 My Projects":
-    st.header("📁 My Saved Projects")
+# 如果没有生成艺术，显示示例
+else:
+    st.info("👈 Select music type and art style, then click 'Generate Art'")
     
-    if not st.session_state.saved_projects:
-        st.info("You haven't saved any projects yet. Create something amazing in the other sections!")
-    else:
-        for i, project in enumerate(st.session_state.saved_projects):
-            with st.expander(f"Project {i+1}: {project.get('style', 'Unknown')} - {project.get('timestamp', '')}"):
-                st.json(project)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(f"Load Project {i+1}", key=f"load_{i}"):
-                        st.session_state.current_project = project
-                        st.success("Project loaded! Go to the appropriate section to view it.")
-                with col2:
-                    if st.button(f"Delete Project {i+1}", key=f"delete_{i}"):
-                        st.session_state.saved_projects.pop(i)
-                        st.rerun()
+    # 显示示例图片
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.image("https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400", 
+                caption="Waveform Art Example")
+    
+    with col2:
+        st.image("https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400", 
+                caption="Circular Art Example")
+    
+    with col3:
+        st.image("https://images.unsplash.com/photo-1519681393784-d120267933ba?w-400", 
+                caption="Particle Art Example")
 
-# About Page
-elif page == "📚 About":
-    st.header("📚 About Creative AI Studio")
-    
+# 使用说明
+with st.expander("📖 How to Use"):
     st.markdown("""
-    ## Final Project: Arts & Advanced Big Data
+    ### Simple Steps:
+    1. **Select Music Type** - Choose from electronic, pop, classical, or jazz
+    2. **Choose Art Style** - Pick one of 3 visualization styles
+    3. **Adjust Settings** - Fine-tune brightness and size
+    4. **Generate & Download** - Click the button and save your artwork
     
-    **Student:** [Your Name]
-    **Course:** Arts and Advanced Big Data
-    **Instructor:** Prof. Jahwan Koo
-    **University:** Sungkyunkwan University
-    **Semester:** 2025 Fall
+    ### What's Happening Behind the Scenes:
+    - Simulated music data is generated based on your selection
+    - Mathematical algorithms transform frequencies into visual patterns
+    - Colors are automatically selected based on music genre
+    - You get a unique artwork every time!
     
-    ### Project Overview
-    
-    Creative AI Studio is an all-in-one platform that integrates everything learned during the semester:
-    
-    1. **Generative Art Creation** - Algorithmic art generation using mathematical functions
-    2. **Data Visualization** - Transforming structured data into artistic representations
-    3. **API Integration** - Connecting to external data sources and services
-    4. **Interactive Web Application** - Real-time parameter adjustment and preview
-    
-    ### Technical Implementation
-    
-    - **Frontend:** Streamlit for web interface
-    - **Visualization:** Matplotlib, Plotly for charts and graphics
-    - **Data Processing:** Pandas, NumPy
-    - **API Integration:** Requests library
-    - **Deployment:** Streamlit Cloud
-    
-    ### Learning Outcomes
-    
-    This project demonstrates proficiency in:
-    - Prompt-based coding with AI assistance
-    - Data-driven design and visualization
-    - Web application development
-    - API integration and data fetching
-    - Creative coding and algorithmic art
-    
-    ### Source Code
-    
-    The complete source code is available on GitHub:
-    [https://github.com/yourusername/creative-ai-studio](https://github.com/yourusername/creative-ai-studio)
-    
-    ### Live Demo
-    
-    Access the live application at:
-    [https://your-app-name.streamlit.app](https://your-app-name.streamlit.app)
+    ### Tech Used:
+    - **Streamlit** - Web interface
+    - **Matplotlib** - Art generation
+    - **NumPy** - Data processing
+    - No external APIs or complex dependencies!
     """)
-    
-    # Course progress visualization
-    st.subheader("📈 Course Progress")
-    
-    weeks = [f"Week {i}" for i in range(1, 11)]
-    topics = [
-        "Course Introduction",
-        "Coding with Prompt",
-        "Practice Session",
-        "Interactive & 3D",
-        "Data-Driven (CSV)",
-        "Chuseok Break",
-        "MCP Protocol",
-        "Mid-Term",
-        "Web-based",
-        "Open API"
-    ]
-    completion = [100, 100, 100, 100, 100, 0, 80, 100, 100, 100]
-    
-    progress_df = pd.DataFrame({
-        "Week": weeks,
-        "Topic": topics,
-        "Completion": completion
-    })
-    
-    fig = px.bar(progress_df, x="Week", y="Completion", 
-                 color="Completion", color_continuous_scale="Viridis",
-                 title="Course Topics Covered")
-    st.plotly_chart(fig, use_container_width=True)
 
-# Helper modules (simplified versions - in real project these would be separate files)
-class GenerativeArtStudio:
-    def __init__(self):
-        pass
-    
-    def create_art(self, style, palette, complexity, layers, randomness):
-        """Generate generative art based on parameters"""
-        fig, ax = plt.subplots(figsize=(10, 10))
-        
-        if style == "Organic Blobs":
-            self._create_organic_blobs(ax, palette, complexity, layers, randomness)
-        elif style == "Geometric Patterns":
-            self._create_geometric_patterns(ax, palette, complexity, layers)
-        
-        ax.set_aspect('equal')
-        ax.axis('off')
-        plt.tight_layout()
-        return fig
-    
-    def _create_organic_blobs(self, ax, palette, complexity, layers, randomness):
-        """Create organic blob shapes"""
-        for _ in range(layers):
-            center = (random.random(), random.random())
-            radius = random.random() * 0.2 + 0.1
-            
-            # Generate blob shape
-            angles = np.linspace(0, 2 * math.pi, 100)
-            radii = radius * (1 + randomness * np.random.randn(100) * 0.3)
-            radii = np.maximum(radii, radius * 0.3)
-            
-            x = center[0] + radii * np.cos(angles)
-            y = center[1] + radii * np.sin(angles)
-            
-            # Choose color based on palette
-            if palette == "Pastel":
-                color = (random.random() * 0.5 + 0.5, 
-                         random.random() * 0.5 + 0.5, 
-                         random.random() * 0.5 + 0.5)
-            elif palette == "Vivid":
-                color = (random.random(), random.random(), random.random())
-            else:  # Monochrome
-                base = random.random() * 0.5 + 0.3
-                color = (base, base, base)
-            
-            polygon = Polygon(np.column_stack([x, y]), 
-                             facecolor=color, alpha=0.7, edgecolor='none')
-            ax.add_patch(polygon)
+# 项目信息
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎓 Final Project")
+st.sidebar.markdown("**Arts & Advanced Big Data**")
+st.sidebar.markdown("Sungkyunkwan University")
 
-class DataVisualizer:
-    def __init__(self):
-        pass
-
-# Footer
+# 页脚
 st.markdown("---")
 st.markdown(
     """
-    <div style='text-align: center; color: #666; font-size: 0.9rem;'>
-    <p>🎨 Creative AI Studio | Final Project | Arts & Advanced Big Data</p>
-    <p>Sungkyunkwan University | Prof. Jahwan Koo | Fall 2025</p>
-    <p>Built with Streamlit • Deployed on Streamlit Cloud</p>
+    <div style='text-align: center; color: #666;'>
+    <p>Music Art Visualizer | Final Project | Arts & Advanced Big Data</p>
+    <p>Sungkyunkwan University | Fall 2025</p>
     </div>
     """,
     unsafe_allow_html=True
