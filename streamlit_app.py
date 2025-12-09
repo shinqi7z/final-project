@@ -1,283 +1,298 @@
-# streamlit_app.py - 极简音乐可视化工作室
 import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-import base64
-import io
-from PIL import Image
+import pandas as pd
 import random
-import math
 
-# 页面配置
-st.set_page_config(
-    page_title="Music Art Visualizer",
-    page_icon="🎵",
-    layout="wide"
-)
+# --------------------------------------
+# 基础工具函数
+# --------------------------------------
 
-# 应用标题
-st.title("🎵 Music Art Visualizer")
-st.markdown("**Transform your music into visual art with one click!**")
+def build_scale(key: str, mode: str = "major"):
+    """根据调性生成一个简单音阶（用数字代替音高，方便后续扩展成 MIDI）"""
+    # 这里用相对音级 1-7 表示，真正实现时可以换成 MIDI 音高
+    if mode == "major":
+        scale_degrees = [1, 2, 3, 4, 5, 6, 7]
+    else:
+        scale_degrees = [1, 2, 3, 4, 5, 6, 7]  # 你可以自己根据小调调整
 
-# 生成简单的音乐模拟数据
-def generate_music_data(music_type="electronic"):
-    """生成模拟的音乐数据"""
-    np.random.seed(42)
-    
-    if music_type == "electronic":
-        beats = 120  # BPM
-        frequencies = np.linspace(80, 2000, 1000)
-        amplitudes = np.random.exponential(0.5, 1000) * np.sin(frequencies/100)
-        
-    elif music_type == "classical":
-        beats = 72
-        frequencies = np.linspace(50, 1000, 1000)
-        amplitudes = np.random.normal(0.5, 0.2, 1000) * np.sin(frequencies/50)
-        
-    elif music_type == "jazz":
-        beats = 100
-        frequencies = np.linspace(60, 1500, 1000)
-        amplitudes = np.random.uniform(0.3, 0.8, 1000) * np.sin(frequencies/80)
-    
-    else:  # pop
-        beats = 128
-        frequencies = np.linspace(100, 2500, 1000)
-        amplitudes = np.random.random(1000) * np.sin(frequencies/120)
-    
-    return {
-        "frequencies": frequencies,
-        "amplitudes": amplitudes,
-        "beats": beats,
-        "music_type": music_type
+    return scale_degrees
+
+
+def choose_chord_progression(mood: str):
+    """根据情绪选择一个简单和弦进行（用 I, V, vi, IV 等罗马数字代替）"""
+    progressions = {
+        "Happy": [["I", "V", "vi", "IV"]],
+        "Sad": [["vi", "IV", "I", "V"]],
+        "Calm": [["I", "IV", "ii", "V"]],
+        "Epic": [["i", "VI", "III", "VII"]],
+        "Lo-fi": [["I", "iii", "vi", "IV"]],
     }
+    # 如果没有匹配 mood，就用默认流行和弦
+    return random.choice(progressions.get(mood, [["I", "V", "vi", "IV"]]))
 
-# 3种简单的可视化风格
-def create_waveform_art(music_data):
-    """风格1：波形艺术"""
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # 基于音乐类型选择颜色
-    colors = {
-        "electronic": ["#FF006E", "#8338EC", "#3A86FF"],
-        "classical": ["#FF9E00", "#FF5400", "#FF006E"],
-        "jazz": ["#38B000", "#70E000", "#CCFF33"],
-        "pop": ["#7209B7", "#F72585", "#4361EE"]
-    }
-    
-    color = colors.get(music_data["music_type"], ["#FF006E", "#8338EC"])
-    
-    # 创建波形
-    x = music_data["frequencies"]
-    y = music_data["amplitudes"]
-    
-    # 添加一些噪声和效果
-    for i in range(3):
-        ax.plot(x, y + i*0.2, 
-                color=color[i % len(color)], 
-                alpha=0.7,
-                linewidth=2)
-    
-    ax.fill_between(x, -0.5, 0.5, alpha=0.1, color=color[0])
-    ax.axis('off')
-    ax.set_facecolor('#111111')
-    fig.patch.set_facecolor('#111111')
-    
-    plt.tight_layout()
-    return fig
 
-def create_circular_art(music_data):
-    """风格2：圆形艺术"""
-    fig, ax = plt.subplots(figsize=(8, 8))
-    
-    # 音乐数据映射到圆形
-    angles = np.linspace(0, 2 * np.pi, 1000)
-    radii = 0.5 + music_data["amplitudes"][:1000] * 0.3
-    
-    # 创建多个同心圆
-    for i in range(5):
-        r = radii * (1 + i * 0.1)
-        x = r * np.cos(angles + i * 0.5)
-        y = r * np.sin(angles + i * 0.5)
-        
-        ax.plot(x, y, 
-                color=plt.cm.plasma(i/5), 
-                alpha=0.7,
-                linewidth=1.5)
-    
-    ax.set_aspect('equal')
-    ax.axis('off')
-    ax.set_facecolor('#000000')
-    fig.patch.set_facecolor('#000000')
-    
-    plt.tight_layout()
-    return fig
-
-def create_particle_art(music_data):
-    """风格3：粒子艺术"""
-    fig, ax = plt.subplots(figsize=(10, 8))
-    
-    # 基于音乐振幅创建粒子
-    n_particles = 500
-    amplitudes = music_data["amplitudes"]
-    
-    # 生成随机粒子位置
-    x = np.random.randn(n_particles) * 2
-    y = np.random.randn(n_particles) * 2
-    
-    # 粒子大小基于音乐振幅
-    sizes = np.abs(amplitudes[:n_particles]) * 100 + 10
-    colors = amplitudes[:n_particles]
-    
-    # 散点图
-    scatter = ax.scatter(x, y, 
-                         s=sizes, 
-                         c=colors, 
-                         cmap='viridis',
-                         alpha=0.6,
-                         edgecolors='white',
-                         linewidth=0.5)
-    
-    # 添加一些连接线
-    for i in range(0, n_particles, 50):
-        for j in range(i+1, min(i+3, n_particles)):
-            ax.plot([x[i], x[j]], [y[i], y[j]], 
-                    'w-', alpha=0.1, linewidth=0.5)
-    
-    ax.set_aspect('equal')
-    ax.axis('off')
-    ax.set_facecolor('#1a1a2e')
-    fig.patch.set_facecolor('#1a1a2e')
-    
-    plt.tight_layout()
-    return fig
-
-# 侧边栏控制
-st.sidebar.header("🎛️ Control Panel")
-
-# 1. 音乐类型选择
-music_type = st.sidebar.selectbox(
-    "Select Music Type",
-    ["electronic", "pop", "classical", "jazz"],
-    index=0
-)
-
-# 2. 可视化风格选择
-art_style = st.sidebar.radio(
-    "Art Style",
-    ["Waveform Art", "Circular Art", "Particle Art"],
-    index=0
-)
-
-# 3. 颜色调整
-brightness = st.sidebar.slider("Brightness", 0.5, 1.5, 1.0, 0.1)
-art_size = st.sidebar.slider("Art Size", 0.5, 2.0, 1.0, 0.1)
-
-# 4. 生成按钮
-if st.sidebar.button("🎨 Generate Art", type="primary", use_container_width=True):
-    # 生成音乐数据
-    music_data = generate_music_data(music_type)
-    
-    # 创建可视化
-    with st.spinner("Creating your music art..."):
-        if art_style == "Waveform Art":
-            fig = create_waveform_art(music_data)
-        elif art_style == "Circular Art":
-            fig = create_circular_art(music_data)
-        else:  # Particle Art
-            fig = create_particle_art(music_data)
-        
-        # 显示图表
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.pyplot(fig)
-            
-            # 下载按钮
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=300, facecolor=fig.get_facecolor())
-            buf.seek(0)
-            
-            st.download_button(
-                label="📥 Download Artwork",
-                data=buf,
-                file_name=f"music_art_{music_type}.png",
-                mime="image/png",
-                use_container_width=True
-            )
-        
-        with col2:
-            # 音乐信息显示
-            st.subheader("🎵 Music Info")
-            st.metric("BPM", music_data["beats"])
-            st.metric("Type", music_data["music_type"].title())
-            st.metric("Art Style", art_style)
-            
-            # 艺术信息
-            st.subheader("🎨 Art Info")
-            st.write(f"**Colors:** Based on {music_type} palette")
-            st.write(f"**Pattern:** Generated from {len(music_data['amplitudes'])} data points")
-            st.write(f"**Brightness:** {brightness}x")
-            
-            # 简单的频率可视化
-            st.subheader("📊 Frequency Spectrum")
-            freq_chart = np.abs(music_data["amplitudes"][:100])
-            st.line_chart(freq_chart)
-
-# 如果没有生成艺术，显示示例
-else:
-    st.info("👈 Select music type and art style, then click 'Generate Art'")
-    
-    # 显示示例图片
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.image("https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400", 
-                caption="Waveform Art Example")
-    
-    with col2:
-        st.image("https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400", 
-                caption="Circular Art Example")
-    
-    with col3:
-        st.image("https://images.unsplash.com/photo-1519681393784-d120267933ba?w-400", 
-                caption="Particle Art Example")
-
-# 使用说明
-with st.expander("📖 How to Use"):
-    st.markdown("""
-    ### Simple Steps:
-    1. **Select Music Type** - Choose from electronic, pop, classical, or jazz
-    2. **Choose Art Style** - Pick one of 3 visualization styles
-    3. **Adjust Settings** - Fine-tune brightness and size
-    4. **Generate & Download** - Click the button and save your artwork
-    
-    ### What's Happening Behind the Scenes:
-    - Simulated music data is generated based on your selection
-    - Mathematical algorithms transform frequencies into visual patterns
-    - Colors are automatically selected based on music genre
-    - You get a unique artwork every time!
-    
-    ### Tech Used:
-    - **Streamlit** - Web interface
-    - **Matplotlib** - Art generation
-    - **NumPy** - Data processing
-    - No external APIs or complex dependencies!
-    """)
-
-# 项目信息
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎓 Final Project")
-st.sidebar.markdown("**Arts & Advanced Big Data**")
-st.sidebar.markdown("Sungkyunkwan University")
-
-# 页脚
-st.markdown("---")
-st.markdown(
+def generate_melody(config):
     """
-    <div style='text-align: center; color: #666;'>
-    <p>Music Art Visualizer | Final Project | Arts & Advanced Big Data</p>
-    <p>Sungkyunkwan University | Fall 2025</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    生成主旋律（简单规则版）
+    输出：一个 DataFrame，包含：bar, beat, degree, duration
+    """
+    num_bars = config["num_bars"]
+    mood = config["mood"]
+    key = config["key"]
+    mode = "major" if "major" in key else "minor"
+
+    scale = build_scale(key, mode)
+    rows = []
+
+    # 简单规则：每小节 4 个八分音符（总共 2 拍），仅作为示例
+    note_per_bar = 4
+    for bar in range(1, num_bars + 1):
+        for i in range(note_per_bar):
+            degree = random.choice(scale)
+            duration = 0.5  # 0.5 拍，八分音符
+            beat = i * duration
+            rows.append({
+                "bar": bar,
+                "beat": beat,
+                "degree": degree,
+                "duration": duration,
+            })
+
+    melody_df = pd.DataFrame(rows)
+    return melody_df
+
+
+def generate_chords(config):
+    """
+    生成和弦走向（按小节）
+    输出：一个 DataFrame，包含：bar, chord
+    """
+    num_bars = config["num_bars"]
+    progression = choose_chord_progression(config["mood"])
+    rows = []
+
+    for bar in range(1, num_bars + 1):
+        chord_symbol = progression[(bar - 1) % len(progression)]
+        rows.append({
+            "bar": bar,
+            "chord": chord_symbol,
+        })
+
+    chords_df = pd.DataFrame(rows)
+    return chords_df
+
+
+def arrange_tracks(melody_df, chords_df, config):
+    """
+    根据编曲模板，把旋律和和弦分配给不同乐器轨道。
+    输出：一个 dict，每个 key 是乐器名，对应一个 DataFrame。
+    """
+    arrangement = config["arrangement"]
+
+    tracks = {}
+
+    # Lead：直接用 melody
+    lead_df = melody_df.copy()
+    lead_df["instrument"] = "Lead"
+    tracks["Lead"] = lead_df
+
+    # Chords：按和弦生成简单的“块状”伴奏（每小节 1 个和弦）
+    chord_rows = []
+    for _, row in chords_df.iterrows():
+        bar = int(row["bar"])
+        chord = row["chord"]
+        chord_rows.append({
+            "bar": bar,
+            "beat": 0.0,
+            "symbol": chord,
+            "duration": 4.0,  # 这里假定一小节 4 拍
+        })
+    chord_track = pd.DataFrame(chord_rows)
+    chord_track["instrument"] = "Chords"
+    tracks["Chords"] = chord_track
+
+    # Bass：使用和弦根音的简化表示（这里直接用 bar 号替代，实际可映射到低音音高）
+    bass_rows = []
+    for _, row in chords_df.iterrows():
+        bar = int(row["bar"])
+        chord = row["chord"]
+        bass_rows.append({
+            "bar": bar,
+            "beat": 0.0,
+            "pattern": f"{chord}_root",
+            "duration": 4.0,
+        })
+    bass_track = pd.DataFrame(bass_rows)
+    bass_track["instrument"] = "Bass"
+    tracks["Bass"] = bass_track
+
+    # Drums：简单节奏 pattern
+    drum_rows = []
+    for bar in range(1, config["num_bars"] + 1):
+        # 4/4：在 0, 1, 2, 3 拍放一个简单鼓点
+        for beat in [0.0, 1.0, 2.0, 3.0]:
+            drum_rows.append({
+                "bar": bar,
+                "beat": beat,
+                "hit": "kick" if beat in [0.0, 2.0] else "snare",
+            })
+    drums_track = pd.DataFrame(drum_rows)
+    drums_track["instrument"] = "Drums"
+    tracks["Drums"] = drums_track
+
+    # 未来可以根据 arrangement 模板，对不同风格做不一样的 pattern
+    # 例如：Pop Band / Strings / 8-bit Game 等
+
+    return tracks
+
+
+# --------------------------------------
+# Streamlit App 主体
+# --------------------------------------
+
+def main():
+    st.set_page_config(
+        page_title="AI Music Composition Studio",
+        layout="wide",
+    )
+
+    st.title("🎼 AI Music Composition Studio")
+    st.markdown(
+        """
+        This app is a **prototype framework** for your final project:
+        an AI-assisted music composition & arrangement tool.
+        
+        - Set mood, style, tempo, and key on the left.
+        - Click **Generate Composition** to create:
+          - a main melody  
+          - a chord progression  
+          - multi-instrument tracks (Lead, Chords, Bass, Drums)  
+        - Later you can replace the simple rule-based logic with real AI / ML models.
+        """
+    )
+
+    # 侧边栏：参数设置
+    st.sidebar.header("🎛 Composition Settings")
+
+    mood = st.sidebar.selectbox(
+        "Mood",
+        ["Happy", "Sad", "Calm", "Epic", "Lo-fi"],
+        index=0
+    )
+
+    style = st.sidebar.selectbox(
+        "Style",
+        ["Pop", "Cinematic", "Game BGM", "Lo-fi", "Jazz"],
+        index=0
+    )
+
+    bpm = st.sidebar.slider("Tempo (BPM)", 60, 180, 100, step=5)
+
+    key = st.sidebar.selectbox(
+        "Key",
+        ["C major", "G major", "A minor", "E minor", "D major"],
+        index=0
+    )
+
+    num_bars = st.sidebar.slider("Length (bars)", 4, 32, 8, step=4)
+
+    arrangement = st.sidebar.selectbox(
+        "Arrangement Template",
+        ["Pop Band", "String Ensemble", "8-bit Game"],
+        index=0
+    )
+
+    if "composition" not in st.session_state:
+        st.session_state["composition"] = None
+
+    if st.sidebar.button("🎹 Generate Composition"):
+        config = {
+            "mood": mood,
+            "style": style,
+            "bpm": bpm,
+            "key": key,
+            "num_bars": num_bars,
+            "arrangement": arrangement,
+        }
+
+        melody_df = generate_melody(config)
+        chords_df = generate_chords(config)
+        tracks = arrange_tracks(melody_df, chords_df, config)
+
+        st.session_state["composition"] = {
+            "config": config,
+            "melody": melody_df,
+            "chords": chords_df,
+            "tracks": tracks,
+        }
+
+    # 显示生成结果
+    comp = st.session_state["composition"]
+    if comp is None:
+        st.info("👉 Set parameters on the left and click **Generate Composition** to start.")
+        return
+
+    config = comp["config"]
+    melody_df = comp["melody"]
+    chords_df = comp["chords"]
+    tracks = comp["tracks"]
+
+    # 上半部分：配置 & 总览
+    st.subheader("🎯 Composition Overview")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Configuration**")
+        st.write(
+            {
+                "Mood": config["mood"],
+                "Style": config["style"],
+                "BPM": config["bpm"],
+                "Key": config["key"],
+                "Bars": config["num_bars"],
+                "Arrangement": config["arrangement"],
+            }
+        )
+
+    with col2:
+        st.markdown("**High-level Description (for your report / slides)**")
+        st.write(
+            f"This piece is a **{config['style']}** style track in **{config['key']}** "
+            f"with a **{config['mood']}** mood, at **{config['bpm']} BPM**, "
+            f"arranged as **{config['arrangement']}** over **{config['num_bars']} bars**."
+        )
+
+    # 中间部分：Melody & Chords
+    st.subheader("🎵 Melody & Chord Progression")
+
+    mc_col1, mc_col2 = st.columns(2)
+
+    with mc_col1:
+        st.markdown("**Main Melody (simplified)**")
+        st.dataframe(melody_df, use_container_width=True)
+
+    with mc_col2:
+        st.markdown("**Chord Progression (per bar)**")
+        st.dataframe(chords_df, use_container_width=True)
+
+    # 下半部分：多乐器轨道
+    st.subheader("🎻 Multi-instrument Tracks")
+
+    for name, df in tracks.items():
+        with st.expander(f"Track: {name}", expanded=(name == "Lead")):
+            st.dataframe(df, use_container_width=True)
+            # 未来可以在这里添加可视化（piano-roll / bar chart）或音频播放
+
+    st.markdown("---")
+    st.markdown(
+        """
+        ✅ **Next Steps / TODO (for your final project):**  
+        - Replace the random & rule-based generation with more advanced music algorithms or AI models.  
+        - Add real MIDI / audio rendering and playback.  
+        - Add user controls for regenerating only one track (e.g., bass line).  
+        - Export compositions (JSON, MIDI, MusicXML, etc.).
+        """
+    )
+
+
+if __name__ == "__main__":
+    main()
