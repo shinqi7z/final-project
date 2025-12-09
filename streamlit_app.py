@@ -1,16 +1,14 @@
 import streamlit as st
 import pandas as pd
 import random
-import io
 from fpdf import FPDF
 
 # --------------------------------------
-# 基础工具函数
+# Utility functions
 # --------------------------------------
 
 def build_scale(key: str, mode: str = "major"):
-    """根据调性生成一个简单音阶（用数字 1-7 表示音级）"""
-    # 这里只用 1–7，真正音高在后面用映射表决定
+    """Return a simple scale as scale degrees 1–7."""
     if mode == "major":
         scale_degrees = [1, 2, 3, 4, 5, 6, 7]
     else:
@@ -19,7 +17,7 @@ def build_scale(key: str, mode: str = "major"):
 
 
 def choose_chord_progression(mood: str):
-    """根据情绪选择一个简单和弦进行（用 I、V、vi 等罗马数字表示）"""
+    """Choose a basic chord progression based on mood (Roman numerals)."""
     progressions = {
         "Happy": [["I", "V", "vi", "IV"]],
         "Sad": [["vi", "IV", "I", "V"]],
@@ -32,8 +30,8 @@ def choose_chord_progression(mood: str):
 
 def generate_melody(config):
     """
-    生成主旋律（简单规则版）
-    输出：DataFrame: bar, beat, degree, duration
+    Generate a main melody (very simple rule-based version).
+    Returns a DataFrame with: bar, beat, degree, duration.
     """
     num_bars = config["num_bars"]
     key = config["key"]
@@ -42,10 +40,10 @@ def generate_melody(config):
     scale = build_scale(key, mode)
     rows = []
 
-    # 简单规则：每小节 4 个八分音符（每个 0.5 拍）
-    note_per_bar = 4
+    # Example rule: 4 eighth notes (0.5 beats) per bar
+    notes_per_bar = 4
     for bar in range(1, num_bars + 1):
-        for i in range(note_per_bar):
+        for i in range(notes_per_bar):
             degree = random.choice(scale)
             duration = 0.5
             beat = i * duration
@@ -64,8 +62,8 @@ def generate_melody(config):
 
 def generate_chords(config):
     """
-    生成和弦走向（按小节）
-    输出：DataFrame: bar, chord
+    Generate a chord progression per bar.
+    Returns a DataFrame with: bar, chord.
     """
     num_bars = config["num_bars"]
     progression = choose_chord_progression(config["mood"])
@@ -81,17 +79,17 @@ def generate_chords(config):
 
 def arrange_tracks(melody_df, chords_df, config):
     """
-    根据编曲模板，把旋律和和弦分配给不同乐器轨道。
-    输出：dict[str, DataFrame]
+    Create very simple multi-instrument tracks from melody and chords.
+    Returns a dict[str, DataFrame].
     """
     tracks = {}
 
-    # Lead：直接用 melody
+    # Lead: directly use melody
     lead_df = melody_df.copy()
     lead_df["instrument"] = "Lead"
     tracks["Lead"] = lead_df
 
-    # Chords：每小节 1 个和弦
+    # Chords: one chord per bar
     chord_rows = []
     for _, row in chords_df.iterrows():
         bar = int(row["bar"])
@@ -101,14 +99,14 @@ def arrange_tracks(melody_df, chords_df, config):
                 "bar": bar,
                 "beat": 0.0,
                 "symbol": chord,
-                "duration": 4.0,  # 假设一小节 4 拍
+                "duration": 4.0,  # assume 4 beats per bar
             }
         )
     chord_track = pd.DataFrame(chord_rows)
     chord_track["instrument"] = "Chords"
     tracks["Chords"] = chord_track
 
-    # Bass：根音占一小节
+    # Bass: root-note placeholder per chord
     bass_rows = []
     for _, row in chords_df.iterrows():
         bar = int(row["bar"])
@@ -125,7 +123,7 @@ def arrange_tracks(melody_df, chords_df, config):
     bass_track["instrument"] = "Bass"
     tracks["Bass"] = bass_track
 
-    # Drums：简单 4/4 鼓点
+    # Drums: very basic 4/4 kick + snare pattern
     drum_rows = []
     for bar in range(1, config["num_bars"] + 1):
         for beat in [0.0, 1.0, 2.0, 3.0]:
@@ -143,7 +141,7 @@ def arrange_tracks(melody_df, chords_df, config):
     return tracks
 
 # --------------------------------------
-# 五线谱（音名）与简谱表示
+# Staff-like and jianpu representations
 # --------------------------------------
 
 SCALE_NOTE_MAP = {
@@ -156,7 +154,7 @@ SCALE_NOTE_MAP = {
 
 
 def degree_to_note_name(degree: int, key: str) -> str:
-    """把音级（1-7）映射成一个简单的音名（近似五线谱信息）"""
+    """Map a scale degree (1–7) to a simple note name."""
     scale = SCALE_NOTE_MAP.get(key, SCALE_NOTE_MAP["C major"])
     idx = int(degree) - 1
     idx = max(0, min(idx, 6))
@@ -164,7 +162,7 @@ def degree_to_note_name(degree: int, key: str) -> str:
 
 
 def build_jianpu_string(melody_df: pd.DataFrame, num_bars: int) -> str:
-    """把旋律转换成按小节分组的简谱字符串，例如：1 2 3 5 | 5 5 3 2"""
+    """Convert melody to a bar-separated numeric (jianpu) string."""
     bars = []
     for bar in range(1, num_bars + 1):
         sub = melody_df[melody_df["bar"] == bar]
@@ -177,8 +175,8 @@ def build_jianpu_string(melody_df: pd.DataFrame, num_bars: int) -> str:
 
 def build_staff_string(melody_df: pd.DataFrame, key: str, num_bars: int) -> str:
     """
-    用音名列表的方式表示“接近五线谱”的信息。
-    示例：
+    Represent the melody using note names, grouped by bar.
+    Example:
     Bar 1: C4 D4 E4 G4
     Bar 2: E4 D4 C4 D4
     """
@@ -193,13 +191,14 @@ def build_staff_string(melody_df: pd.DataFrame, key: str, num_bars: int) -> str:
     return "\n".join(lines)
 
 # --------------------------------------
-# PDF 导出
+# PDF export
 # --------------------------------------
 
 def generate_pdf_report(composition):
     """
-    根据当前 composition 生成一份简单 PDF 报告（包含配置、和弦、简谱、音名）。
-    返回 bytes，给 st.download_button 使用。
+    Build a simple PDF report from the current composition:
+    configuration, chord progression, jianpu, staff-like note names, and track summary.
+    Returns bytes for Streamlit download_button.
     """
     config = composition["config"]
     melody_df = composition["melody"]
@@ -215,7 +214,7 @@ def generate_pdf_report(composition):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
 
-    # 第 1 页：基本信息
+    # Page 1: configuration + chords
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "AI Music Composition Report", ln=True)
@@ -235,7 +234,6 @@ def generate_pdf_report(composition):
     for k, v in cfg_lines.items():
         pdf.cell(0, 6, f"- {k}: {v}", ln=True)
 
-    # 和弦
     pdf.ln(4)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 8, "Chord Progression (per bar):", ln=True)
@@ -243,10 +241,10 @@ def generate_pdf_report(composition):
     for _, row in chords_df.iterrows():
         pdf.cell(0, 6, f"Bar {int(row['bar'])}: {row['chord']}", ln=True)
 
-    # 第 2 页：简谱 & 音名
+    # Page 2: jianpu + note names
     pdf.add_page()
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, "Melody - Jianpu (Simplified Numeric Notation):", ln=True)
+    pdf.cell(0, 8, "Melody - Numeric (Jianpu) Notation:", ln=True)
     pdf.set_font("Arial", size=11)
     for line in jianpu_str.split("|"):
         pdf.cell(0, 6, line.strip(), ln=True)
@@ -258,7 +256,6 @@ def generate_pdf_report(composition):
     for line in staff_str.split("\n"):
         pdf.cell(0, 6, line, ln=True)
 
-    # 轨道概要
     pdf.ln(4)
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 8, "Tracks Summary:", ln=True)
@@ -266,11 +263,14 @@ def generate_pdf_report(composition):
     for name, df in tracks.items():
         pdf.cell(0, 6, f"- {name}: {len(df)} events", ln=True)
 
-    pdf_bytes = pdf.output(dest="S").encode("latin1")
+    pdf_bytes = pdf.output(dest="S")
+    # fpdf2 may return either str or bytes depending on version
+    if isinstance(pdf_bytes, str):
+        pdf_bytes = pdf_bytes.encode("latin1")
     return pdf_bytes
 
 # --------------------------------------
-# Streamlit App 主体
+# Streamlit app
 # --------------------------------------
 
 def main():
@@ -281,17 +281,16 @@ def main():
 
     st.title("🎼 AI Music Composition Studio")
 
+    # Intro (no single-sentence summary, just bullet-style guidance)
     st.markdown(
         """
-        这是一个用于期末项目的 **AI 音乐作曲与编曲原型**：
-
-        - 左侧设置情绪、风格、速度、调性和长度  
-        - 点击 **Generate Composition** 生成：主旋律、和弦走向、多乐器轨道  
-        - 旋律会以 **五线谱信息（音名）+ 简谱（数字谱）** 的形式展示，并可导出 PDF 报告
-        """
+- Use the sidebar to choose **mood**, **style**, **tempo**, **key**, and **length**  
+- Click **Generate Composition** to create a main melody, chord progression, and multiple instrument tracks  
+- View the melody as staff-like **note names** and **numeric (jianpu) notation**, and export a PDF report
+"""
     )
 
-    # 侧边栏：参数设置
+    # Sidebar controls
     st.sidebar.header("🎛 Composition Settings")
 
     mood = st.sidebar.selectbox(
@@ -348,7 +347,7 @@ def main():
 
     comp = st.session_state["composition"]
     if comp is None:
-        st.info("👉 在左侧设置参数，然后点击 **Generate Composition** 开始生成。")
+        st.info("Set the parameters on the left and click **Generate Composition** to start.")
         return
 
     config = comp["config"]
@@ -356,7 +355,7 @@ def main():
     chords_df = comp["chords"]
     tracks = comp["tracks"]
 
-    # 配置概览
+    # Overview
     st.subheader("🎯 Composition Overview")
     col1, col2 = st.columns(2)
 
@@ -376,12 +375,12 @@ def main():
     with col2:
         st.markdown("**High-level Description (for report/presentation)**")
         st.write(
-            f"This piece is a **{config['style']}** style track in **{config['key']}** "
-            f"with a **{config['mood']}** mood, at **{config['bpm']} BPM**, "
-            f"arranged as **{config['arrangement']}** over **{config['num_bars']} bars**."
+            f"This piece uses **{config['style']}** style in **{config['key']}**, "
+            f"with a **{config['mood']}** mood at **{config['bpm']} BPM**, "
+            f"arranged as **{config['arrangement']}** over **{config['num_bars']}** bars."
         )
 
-    # 旋律 + 谱表示
+    # Melody & chords
     st.subheader("🎵 Melody & Notation")
 
     jianpu_str = build_jianpu_string(melody_df, config["num_bars"])
@@ -390,27 +389,27 @@ def main():
     mcol1, mcol2 = st.columns(2)
 
     with mcol1:
-        st.markdown("**Melody Data (for debugging / analysis)**")
+        st.markdown("**Melody Data (degrees and timing)**")
         st.dataframe(melody_df, use_container_width=True)
 
     with mcol2:
         st.markdown("**Chord Progression (per bar)**")
         st.dataframe(chords_df, use_container_width=True)
 
-    st.markdown("**简谱（Numeric Notation）**")
+    st.markdown("**Numeric (Jianpu) Notation**")
     st.code(jianpu_str, language="text")
 
-    st.markdown("**五线谱信息（以音名表示，非真实乐谱图像）**")
+    st.markdown("**Staff-like Note Names**")
     st.code(staff_str, language="text")
 
-    # 多乐器轨道
+    # Tracks
     st.subheader("🎻 Multi-instrument Tracks")
 
     for name, df in tracks.items():
         with st.expander(f"Track: {name}", expanded=(name == "Lead")):
             st.dataframe(df, use_container_width=True)
 
-    # 导出 PDF
+    # PDF Export
     st.subheader("📥 Export PDF Report")
 
     pdf_bytes = generate_pdf_report(comp)
