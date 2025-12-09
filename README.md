@@ -1,33 +1,60 @@
-# 🎵 Music Art Visualizer
+# 🎼 AI Music Composition Studio
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-username-music-visualizer.streamlit.app)
+This repository contains a prototype **AI-assisted music composition & arrangement tool** built with **Python + Streamlit**.  
+It is designed as a final project for an "All-in-One Creation" style course, demonstrating:
 
-## Transform Music into Visual Art
+- Generative structure design (melody, chords, multi-track arrangement)
+- Data-driven mapping from mood/style parameters to musical patterns
+- Interactive web-based creativity using Streamlit
 
-**Final Project for Arts & Advanced Big Data**  
-**Sungkyunkwan University** | Prof. Jahwan Koo
+> Note: The current version uses **simple rule-based and random generation** for music structure.  
+> You can later replace these parts with real AI/ML models or more advanced music algorithms.
 
-### 🚀 Live Demo
-[Click here to try the app](https://your-username-music-visualizer.streamlit.app)
+---
 
-### 📋 Project Overview
+## ✨ Features
 
-A simple yet powerful web app that transforms simulated music data into beautiful visual art. No audio files needed!
+- **Composition Settings (Sidebar)**  
+  - Mood: `Happy`, `Sad`, `Calm`, `Epic`, `Lo-fi`  
+  - Style: `Pop`, `Cinematic`, `Game BGM`, `Lo-fi`, `Jazz`  
+  - Tempo (BPM)  
+  - Key (e.g., `C major`, `A minor`)  
+  - Length in bars  
+  - Arrangement template: `Pop Band`, `String Ensemble`, `8-bit Game`
 
-### ✨ Features
+- **AI-ish Music Generation (Prototype)**
+  - Main melody generation (as a sequence of bars, beats, degrees, durations)
+  - Chord progression per bar based on mood (e.g., I–V–vi–IV for happy pop)
+  - Multi-instrument tracks:
+    - `Lead` (melody line)
+    - `Chords` (block chords per bar)
+    - `Bass` (root-note pattern)
+    - `Drums` (simple kick & snare pattern)
 
-- **3 Music Types**: Electronic, Pop, Classical, Jazz
-- **3 Art Styles**: Waveform, Circular, Particle
-- **Real-time Generation**: Instant visual feedback
-- **Download Art**: Save your creations as PNG
-- **Simple Interface**: Easy to use for everyone
+- **Interactive Visualization**
+  - Display of configuration summary
+  - Melody & chord progression as tables
+  - Per-track data views via expanders:
+    - Inspect each instrument’s bars, beats, and patterns
 
-### 🛠️ How It Works
+- **Future-ready Design**
+  - Clear function boundaries:
+    - `generate_melody(config)`
+    - `generate_chords(config)`
+    - `arrange_tracks(melody_df, chords_df, config)`
+  - Easy to upgrade with:
+    - AI models
+    - MIDI/audio rendering
+    - More complex arrangement logic
 
-1. Select a music genre
-2. Choose an art style
-3. Adjust settings (optional)
-4. Click "Generate Art"
-5. Download your unique artwork!
+---
 
-### 📁 Project Structure
+## 🧱 Project Structure
+
+Currently, the project is a single-file Streamlit app:
+
+```text
+.
+├── app.py           # Main Streamlit application
+├── requirements.txt # Python dependencies
+└── README.md        # Project documentation
