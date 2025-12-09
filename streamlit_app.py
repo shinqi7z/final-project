@@ -1,3 +1,4 @@
+from io import BytesIO
 import streamlit as st
 import pandas as pd
 import random
@@ -263,11 +264,12 @@ def generate_pdf_report(composition):
     for name, df in tracks.items():
         pdf.cell(0, 6, f"- {name}: {len(df)} events", ln=True)
 
-    pdf_bytes = pdf.output(dest="S")
-    # fpdf2 may return either str or bytes depending on version
-    if isinstance(pdf_bytes, str):
-        pdf_bytes = pdf_bytes.encode("latin1")
+    # Write PDF into an in-memory buffer to obtain proper bytes for Streamlit
+    buffer = BytesIO()
+    pdf.output(buffer)          # fpdf2 will write the PDF into this buffer
+    pdf_bytes = buffer.getvalue()
     return pdf_bytes
+
 
 # --------------------------------------
 # Streamlit app
