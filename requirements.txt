@@ -1,1 +1,14 @@
-streamlit
+creative-ai-studio/
+├── streamlit_app.py          # 主应用文件
+├── requirements.txt          # 依赖包列表
+├── README.md                 # 项目说明文档
+├── pages/                    # 多页面应用
+│   ├── 1_🎨_Generative_Art.py
+│   ├── 2_📊_Data_Visualization.py
+│   ├── 3_🌐_API_Explorer.py
+│   └── 4_⚙️_Settings.py
+├── data/                     # 示例数据文件
+│   ├── sample_data.csv
+│   └── color_palettes.json
+└── assets/                   # 静态资源
+    └── logo.png
