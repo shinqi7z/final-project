@@ -270,7 +270,6 @@ def generate_pdf_report(composition):
     pdf_bytes = buffer.getvalue()
     return pdf_bytes
 
-
 # --------------------------------------
 # Streamlit app
 # --------------------------------------
